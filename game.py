@@ -6,25 +6,64 @@ import os
 
 pygame.init()
 
+###
+
+def line_intersection(line1, line2):
+    xdiff = (line1[0][0] - line1[1][0], line2[0][0] - line2[1][0])
+    ydiff = (line1[0][1] - line1[1][1], line2[0][1] - line2[1][1])
+
+    def det(a, b):
+        return a[0] * b[1] - a[1] * b[0]
+
+    div = det(xdiff, ydiff)
+    if div == 0:
+        return 0, 0
+
+    d = (det(*line1), det(*line2))
+    x = det(d, xdiff) / div
+    y = det(d, ydiff) / div
+    return x, y
+
+def ccw(A,B,C):
+    return (C[1]-A[1]) * (B[0]-A[0]) > (B[1]-A[1]) * (C[0]-A[0])
+
+# Return true if line segments AB and CD intersect
+def intersect(A,B,C,D):
+    return ccw(A,C,D) != ccw(B,C,D) and ccw(A,B,C) != ccw(A,B,D)
+
+###
+
+def checkForCollision(obj, wallList):
+        for wall in wallList:
+            for i in range(4):
+                if(intersect(obj.corners[i], obj.corners[(i+1)%4],(wall.x1, wall.y1), (wall.x2, wall.y2))):
+                    pos = line_intersection((obj.corners[i], obj.corners[(i+1)%4]),((wall.x1, wall.y1), (wall.x2, wall.y2)))
+                    pygame.draw.circle(gameDisplay, (0,0,0), pos, 5)
+                    if type(obj) == car.Car:
+                        killPlayer()
+def killPlayer():
+    player.__init__(startPos[0], startPos[1], 0.02)
+
+
 def checkKeyboardInput():
     keys=pygame.key.get_pressed()
     if keys[pygame.K_UP]:
-        car.isAccelerating = True
-        car.accelerate(0.1)
+        player.isAccelerating = True
+        player.accelerate(0.1)
     if keys[pygame.K_DOWN]:
-        car.isAccelerating = True
-        car.accelerate(-0.05)
+        player.isAccelerating = True
+        player.accelerate(-0.05)
     if keys[pygame.K_RIGHT]:
-        if abs(car.acc) > 0.5:
-            car.turn(-turnAngle)
+        if abs(player.acc) > 0.5:
+            player.turn(-turnAngle)
     if keys[pygame.K_LEFT]:
-        if abs(car.acc) > 0.5:
-            car.turn(turnAngle)
+        if abs(player.acc) > 0.5:
+            player.turn(turnAngle)
     if keys[pygame.K_SPACE]:
-        car.slowDown(0.5)
+        player.slowDown(0.5)
     if keys[pygame.K_r]:
         changeStartPos(pygame.mouse.get_pos())
-        car.x, car.y = pygame.mouse.get_pos()
+        player.x, player.y = pygame.mouse.get_pos()
 
 def changeStartPos(pos):
     with open('start_pos.txt', 'w') as F:
@@ -46,6 +85,19 @@ def loadWalls(walls):
 def drawWalls(wallWidth):
     for w in walls:
         pygame.draw.line(gameDisplay, black, (w.x1, w.y1), (w.x2, w.y2), wallWidth)
+
+def debugMode():
+    drawWalls(2)
+    for cor in player.corners:
+        pygame.draw.circle(gameDisplay, (0,0,0), cor, 3)
+    debugBorder()
+    checkForCollision(player, walls)
+
+def debugBorder():
+    pygame.draw.line(gameDisplay, black, player.corners[0], player.corners[1], 2)
+    pygame.draw.line(gameDisplay, black, player.corners[1], player.corners[2], 2)
+    pygame.draw.line(gameDisplay, black, player.corners[2], player.corners[3], 2)
+    pygame.draw.line(gameDisplay, black, player.corners[3], player.corners[0], 2)
 
 display_width = 1600
 display_height = 900
@@ -74,7 +126,7 @@ if os.path.exists('start_pos.txt'):
             startPos = tuple(l)
         
 
-car = car.Car(startPos[0], startPos[1], 0.02)
+player = car.Car(startPos[0], startPos[1], 0.02)
 walls = []
 loadWalls(walls)
 
@@ -121,7 +173,7 @@ while not crashed:
         walls = []
         open("walls.txt", "w").close()
 
-    car.isAccelerating = False
+    player.isAccelerating = False
     if userInputOn:
         checkKeyboardInput()
 
@@ -135,13 +187,13 @@ while not crashed:
 
     gameDisplay.fill(white)
     
-    if not car.isAccelerating:
-        car.slowDown(0.5)
+    if not player.isAccelerating:
+        player.slowDown(0.5)
 
 
-    drawWalls(2)
-    car.updatePos()
-    car.draw(gameDisplay)
+    player.updatePos()
+    debugMode()
+    player.draw(gameDisplay)
     
 
     pygame.display.update()
