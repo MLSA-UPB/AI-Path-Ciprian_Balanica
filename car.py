@@ -2,15 +2,16 @@ import pygame
 import math
 
 class Car:
-    maxAcceleration = 10
-    minAcceleration = -5
-    def __init__(self, x, y, scale = 1, initAngle = 0):
+    maxAcceleration = 7
+    minAcceleration = -3
+    def __init__(self, x, y, scale = 1, initAngle = 0, maxView = 300):
         self.x = x
         self.y = y
         self.scale = scale
         self.acc = 0
         self.angle = initAngle
         self.isAccelerating = False
+        self.maxView = maxView
 
         self.sprite = pygame.image.load('Resources/car.png')
         self.spriteRect = self.sprite.get_rect()
@@ -19,6 +20,15 @@ class Car:
         self.sprite = pygame.transform.scale(self.sprite, ((int)(self.width), (int)(self.height)))
 
         self.corners = calcCorners(self.x, self.y, self.width, self.height, self.angle)
+        self.visions = [
+            [(self.x, self.y), point(self.x, self.y, self.angle, self.maxView)],
+            [(self.x, self.y), point(self.x, self.y, self.angle + 30, self.maxView)],
+            [(self.x, self.y), point(self.x, self.y, self.angle - 30, self.maxView)],
+            [(self.x, self.y), point(self.x, self.y, self.angle + 60, self.maxView)],
+            [(self.x, self.y), point(self.x, self.y, self.angle - 60, self.maxView)],
+            [(self.x, self.y), point(self.x, self.y, self.angle + 90, self.maxView)],
+            [(self.x, self.y), point(self.x, self.y, self.angle - 90, self.maxView)]
+        ]
 
     def draw(self, screen):
         #screen.blit(self.sprite, (self.x, self.y))
@@ -33,6 +43,15 @@ class Car:
         self.y = self.y - self.acc * math.sin(calcTrigAngle(self.angle))
         self.x = self.x + self.acc * math.cos(calcTrigAngle(self.angle))
         self.corners = calcCorners(self.x, self.y, self.width, self.height, calcTrigAngle(self.angle))
+        self.visions = [
+            [(self.x, self.y), point(self.x, self.y, self.angle - 90, self.maxView)],
+            [(self.x, self.y), point(self.x, self.y, self.angle - 60, self.maxView)],
+            [(self.x, self.y), point(self.x, self.y, self.angle - 30, self.maxView)],
+            [(self.x, self.y), point(self.x, self.y, self.angle, self.maxView)],
+            [(self.x, self.y), point(self.x, self.y, self.angle + 30, self.maxView)],
+            [(self.x, self.y), point(self.x, self.y, self.angle + 60, self.maxView)],
+            [(self.x, self.y), point(self.x, self.y, self.angle + 90, self.maxView)]
+        ]
 
     def accelerate(self, value):
         self.acc += value
@@ -52,6 +71,22 @@ class Car:
     def turn(self, value):
         self.angle += value
 
+    def vision(self, walls, screen):
+        distances = [301] * len(self.visions)
+        for wall in walls:
+            for i in range(len(self.visions)):
+                if(intersect(self.visions[i][0], self.visions[i][1],(wall.x1, wall.y1), (wall.x2, wall.y2))):
+                    pos = line_intersection((self.visions[i][0], self.visions[i][1]),((wall.x1, wall.y1), (wall.x2, wall.y2)))
+                    # pygame.draw.circle(screen, (0,0,0), pos, 5)
+                    distance = math.sqrt((pos[0] - self.x) ** 2 + (pos[1] - self.y) ** 2)
+                    if distance < distances[i]:
+                        distances[i] = distance
+        return distances
+
+
+    def visionDraw(self, screen):
+        for i in range(len(self.visions)):
+            pygame.draw.line(screen, (0,0,0), self.visions[i][0], self.visions[i][1])
 
 def calcTrigAngle(angle):
     return angle / 180 * math.pi + math.pi / 2
@@ -99,3 +134,14 @@ def ccw(A,B,C):
 # Return true if line segments AB and CD intersect
 def intersect(A,B,C,D):
     return ccw(A,C,D) != ccw(B,C,D) and ccw(A,B,C) != ccw(A,B,D)
+
+def drawLine(x, y, angle, dist, screen):
+    pygame.draw.line(screen, 
+        (0,0,0), 
+        (x, y), 
+            (x + dist * math.cos(calcTrigAngle(angle)),
+            y - dist * math.sin(calcTrigAngle(angle))),
+        2)
+
+def point(x, y, angle, dist):
+    return (x + dist * math.cos(calcTrigAngle(angle)), y - dist * math.sin(calcTrigAngle(angle)))
